@@ -104,16 +104,25 @@
         .activity-actions .btn:hover { background-color: #005bb5; }
         
         .config-section { display: none; margin-top: 20px; padding: 20px; border: 1px solid var(--border-color); border-radius: var(--border-radius); background-color: var(--surface-color); }
-        .admin-controls button { margin-top: 10px; margin-right: 10px; padding: 10px 15px; background-color: var(--primary-color); color: white; border: none; border-radius: 8px; cursor: pointer; }
-        .admin-controls button.secondary { background-color: var(--secondary-color); }
+        .admin-controls button { margin-top: 10px; margin-right: 10px; padding: 10px 15px; background-color: var(--primary-color); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        .admin-controls button.secondary { background-color: var(--secondary-color); font-size: 16px; width: 100%; margin-top: 20px; }
 
-        .admin-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
-        @media (min-width: 768px) { .admin-grid { grid-template-columns: 1fr 1fr; } }
+        .admin-grid { display: grid; grid-template-columns: 1fr; gap: 25px; }
+        @media (min-width: 900px) { .admin-grid { grid-template-columns: 2fr 1fr; } }
         
+        .admin-card {
+             background-color: var(--background-color);
+             padding: 15px;
+             border-radius: var(--border-radius);
+             border: 1px solid var(--border-color);
+        }
+        .admin-card h4 { margin-top: 0; }
+        .admin-card h5 { margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;}
+
         .admin-table-wrapper { max-height: 400px; overflow-y: auto; }
-        .admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .admin-table { width: 100%; border-collapse: collapse; font-size: 12px; }
         .admin-table th, .admin-table td { border: 1px solid var(--border-color); padding: 8px; text-align: left; }
-        .admin-table th { background-color: var(--background-color); position: sticky; top: 0; }
+        .admin-table th { background-color: #e9ecef; position: sticky; top: 0; }
         .admin-table td[contenteditable="true"] { background-color: #fef9e7; }
         .admin-table .delete-row-btn { background: none; border: none; color: var(--danger-color); cursor: pointer; font-size: 18px; }
         #admin-status { margin-top: 15px; padding: 10px; border-radius: 8px; text-align: center; font-weight: 500; display: none; background-color: var(--team-color); color: white; }
@@ -139,9 +148,16 @@
 
         
         <div class="config-section">
-            <h3>Configuración (Admin)</h3>
+            <h3>Panel de Administración</h3>
             <div class="admin-grid">
-                <div id="staff-editor">
+                <div class="admin-card" id="student-editor">
+                    <h4>Editor de Alumnos y Horarios</h4>
+                    <div class="admin-table-wrapper" id="admin-table-container"></div>
+                    <div class="admin-controls">
+                        <button id="add-student-btn">Añadir Alumno</button>
+                    </div>
+                </div>
+                <div class="admin-card" id="staff-editor">
                     <h4>Editor de Staff</h4>
                     <h5>Entrevistadores</h5>
                     <div class="admin-table-wrapper" id="interviewers-table-container"></div>
@@ -154,16 +170,9 @@
                         <button id="add-expositor-btn">Añadir Expositor</button>
                     </div>
                 </div>
-                <div id="student-editor">
-                    <h4>Editor de Alumnos y Horarios</h4>
-                    <div class="admin-table-wrapper" id="admin-table-container"></div>
-                    <div class="admin-controls">
-                        <button id="add-student-btn">Añadir Alumno</button>
-                    </div>
-                </div>
             </div>
             <div class="admin-controls">
-                <button id="save-data-btn" class="secondary">Guardar y Actualizar Itinerarios</button>
+                <button id="save-data-btn" class="secondary">Guardar Todos los Cambios</button>
             </div>
             <div id="admin-status"></div>
         </div>
@@ -203,26 +212,16 @@
                     { id: '00589649', name: 'Espejel Ramos Diego', team: 2, presentationTime: '9:15 - 9:35', sala: 'B', interviewTime: '10:15 - 10:35', entrevistador: 3, networkingTime: '10:25 - 11:00', expositor: 2 },
                     { id: '00563562', name: 'García Romero Antonio Salvador', team: 2, presentationTime: '9:15 - 9:35', sala: 'B', interviewTime: '10:15 - 10:35', entrevistador: 4, networkingTime: '10:25 - 11:00', expositor: 2 },
                     { id: '00561018', name: 'Gómez Sobrino José Luis', team: 2, presentationTime: '9:15 - 9:35', sala: 'B', interviewTime: '10:15 - 10:35', entrevistador: 5, networkingTime: '10:25 - 11:00', expositor: 2 },
-                    // ... (rest of the student data can be added here)
                 ],
                 interviewers: [
-                    { id: 1, name: 'Ricardo Morales' },
-                    { id: 2, name: 'Sofia Castillo' },
-                    { id: 3, name: 'Andrea Jiménez' },
-                    { id: 4, name: 'Jorge Noguez' },
-                    { id: 5, name: 'Fernanda Soto' },
-                    { id: 6, name: 'David Alarcón' },
-                    { id: 7, name: 'Laura Méndez' },
-                    { id: 8, name: 'Carlos Valerio' },
-                    { id: 9, name: 'Lucía Méndez' },
+                    { id: 1, name: 'Ricardo Morales' }, { id: 2, name: 'Sofia Castillo' }, { id: 3, name: 'Andrea Jiménez' },
+                    { id: 4, name: 'Jorge Noguez' }, { id: 5, name: 'Fernanda Soto' }, { id: 6, name: 'David Alarcón' },
+                    { id: 7, name: 'Laura Méndez' }, { id: 8, name: 'Carlos Valerio' }, { id: 9, name: 'Lucía Méndez' },
                     { id: 10, name: 'Alberto Ríos' }
                 ],
                 expositors: [
-                    { id: 1, name: 'ExpoTech' },
-                    { id: 2, name: 'InnovaHub' },
-                    { id: 3, name: 'FutureMinds' },
-                    { id: 4, name: 'Talent Solutions' },
-                    { id: 5, name: 'Creative Spark' }
+                    { id: 1, name: 'ExpoTech' }, { id: 2, name: 'InnovaHub' }, { id: 3, name: 'FutureMinds' },
+                    { id: 4, name: 'Talent Solutions' }, { id: 5, name: 'Creative Spark' }
                 ]
             };
 
@@ -370,8 +369,8 @@
                         }
                     };
 
-                    const interviewerName = interviewersMap.get(studentInfo.entrevistador) || `ID #${studentInfo.entrevistador}`;
-                    const expositorName = expositorsMap.get(studentInfo.expositor) || `ID #${studentInfo.expositor}`;
+                    const interviewerName = interviewersMap.get(studentInfo.entrevistador) || `Entrevistador #${studentInfo.entrevistador}`;
+                    const expositorName = expositorsMap.get(studentInfo.expositor) || `Expositor #${studentInfo.expositor}`;
 
                     createActivity(studentInfo.presentationTime, 'Presentación de Proyectos', `Sala de Pitch ${studentInfo.sala}`);
                     createActivity(studentInfo.networkingTime, 'Mesa con Expositores', `Con: ${expositorName}`);
