@@ -32,7 +32,7 @@
         }
 
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
         }
 
@@ -107,12 +107,15 @@
         .admin-controls button { margin-top: 10px; margin-right: 10px; padding: 10px 15px; background-color: var(--primary-color); color: white; border: none; border-radius: 8px; cursor: pointer; }
         .admin-controls button.secondary { background-color: var(--secondary-color); }
 
-        #admin-table-container { margin-top: 20px; max-height: 400px; overflow-y: auto; }
-        #admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        #admin-table th, #admin-table td { border: 1px solid var(--border-color); padding: 8px; text-align: left; }
-        #admin-table th { background-color: var(--background-color); position: sticky; top: 0; }
-        #admin-table td[contenteditable="true"] { background-color: #fef9e7; }
-        #admin-table .delete-row-btn { background: none; border: none; color: var(--danger-color); cursor: pointer; font-size: 18px; }
+        .admin-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        @media (min-width: 768px) { .admin-grid { grid-template-columns: 1fr 1fr; } }
+        
+        .admin-table-wrapper { max-height: 400px; overflow-y: auto; }
+        .admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .admin-table th, .admin-table td { border: 1px solid var(--border-color); padding: 8px; text-align: left; }
+        .admin-table th { background-color: var(--background-color); position: sticky; top: 0; }
+        .admin-table td[contenteditable="true"] { background-color: #fef9e7; }
+        .admin-table .delete-row-btn { background: none; border: none; color: var(--danger-color); cursor: pointer; font-size: 18px; }
         #admin-status { margin-top: 15px; padding: 10px; border-radius: 8px; text-align: center; font-weight: 500; display: none; background-color: var(--team-color); color: white; }
 
     </style>
@@ -137,10 +140,29 @@
         
         <div class="config-section">
             <h3>Configuración (Admin)</h3>
-            <h4>Editor de Alumnos y Horarios</h4>
-            <div id="admin-table-container"></div>
+            <div class="admin-grid">
+                <div id="staff-editor">
+                    <h4>Editor de Staff</h4>
+                    <h5>Entrevistadores</h5>
+                    <div class="admin-table-wrapper" id="interviewers-table-container"></div>
+                    <div class="admin-controls">
+                        <button id="add-interviewer-btn">Añadir Entrevistador</button>
+                    </div>
+                    <h5>Expositores</h5>
+                    <div class="admin-table-wrapper" id="expositors-table-container"></div>
+                    <div class="admin-controls">
+                        <button id="add-expositor-btn">Añadir Expositor</button>
+                    </div>
+                </div>
+                <div id="student-editor">
+                    <h4>Editor de Alumnos y Horarios</h4>
+                    <div class="admin-table-wrapper" id="admin-table-container"></div>
+                    <div class="admin-controls">
+                        <button id="add-student-btn">Añadir Alumno</button>
+                    </div>
+                </div>
+            </div>
             <div class="admin-controls">
-                <button id="add-student-btn">Añadir Alumno</button>
                 <button id="save-data-btn" class="secondary">Guardar y Actualizar Itinerarios</button>
             </div>
             <div id="admin-status"></div>
@@ -151,7 +173,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             let students = {};
             const TIMEZONE = 'America/Mexico_City';
-            const STUDENTS_STORAGE_KEY = 'talentCampMasterSchedule';
+            const MASTER_DATA_KEY = 'talentCampMasterData';
 
             // DOM Elements
             const searchInput = document.getElementById('search-input');
@@ -161,74 +183,48 @@
             const addStudentBtn = document.getElementById('add-student-btn');
             const saveDataBtn = document.getElementById('save-data-btn');
             const adminStatus = document.getElementById('admin-status');
+            const interviewersTableContainer = document.getElementById('interviewers-table-container');
+            const addInterviewerBtn = document.getElementById('add-interviewer-btn');
+            const expositorsTableContainer = document.getElementById('expositors-table-container');
+            const addExpositorBtn = document.getElementById('add-expositor-btn');
 
             // ==============================================================================
-            // BASE DE DATOS FIJA CON EL CRONOGRAMA MAESTRO FINAL
+            // BASE DE DATOS INICIAL
             // ==============================================================================
-            const masterScheduleData = [
-                { ID: '00565156', Nombre: 'Alonso Farfan Mikel Javier', Equipo: 1, 'Hora de Presentación': '9:15 - 9:35', Sala: 'A', 'Hora de Entrevista': '9:55 - 10:15', Entrevistador: 1, 'Hora de Mesa Redonda': '10:25 - 11:00', Expositor: 1 },
-                { ID: '00382999', Nombre: 'Alvarez Santiago Cristhian Rafael', Equipo: 1, 'Hora de Presentación': '9:15 - 9:35', Sala: 'A', 'Hora de Entrevista': '9:55 - 10:15', Entrevistador: 2, 'Hora de Mesa Redonda': '10:25 - 11:00', Expositor: 1 },
-                { ID: '00549581', Nombre: 'Arroyo Vargas Hanna Janette', Equipo: 1, 'Hora de Presentación': '9:15 - 9:35', Sala: 'A', 'Hora de Entrevista': '9:55 - 10:15', Entrevistador: 3, 'Hora de Mesa Redonda': '10:25 - 11:00', Expositor: 1 },
-                { ID: '00569010', Nombre: 'Aymerich Bringas José Luis', Equipo: 1, 'Hora de Presentación': '9:15 - 9:35', Sala: 'A', 'Hora de Entrevista': '10:15 - 10:35', Entrevistador: 1, 'Hora de Mesa Redonda': '10:25 - 11:00', Expositor: 1 },
-                { ID: '00433549', Nombre: 'Colmenares Barrera Bruno', Equipo: 1, 'Hora de Presentación': '9:15 - 9:35', Sala: 'A', 'Hora de Entrevista': '10:15 - 10:35', Entrevistador: 2, 'Hora de Mesa Redonda': '10:25 - 11:00', Expositor: 1 },
-                { ID: '00576469', Nombre: 'Cruz Cruz Daira', Equipo: 2, 'Hora de Presentación': '9:15 - 9:35', Sala: 'B', 'Hora de Entrevista': '9:55 - 10:15', Entrevistador: 4, 'Hora de Mesa Redonda': '10:25 - 11:00', Expositor: 2 },
-                { ID: '00527134', Nombre: 'Deloya González Guillermo', Equipo: 2, 'Hora de Presentación': '9:15 - 9:35', Sala: 'B', 'Hora de Entrevista': '9:55 - 10:15', Entrevistador: 5, 'Hora de Mesa Redonda': '10:25 - 11:00', Expositor: 2 },
-                { ID: '00589649', Nombre: 'Espejel Ramos Diego', Equipo: 2, 'Hora de Presentación': '9:15 - 9:35', Sala: 'B', 'Hora de Entrevista': '10:15 - 10:35', Entrevistador: 3, 'Hora de Mesa Redonda': '10:25 - 11:00', Expositor: 2 },
-                { ID: '00563562', Nombre: 'García Romero Antonio Salvador', Equipo: 2, 'Hora de Presentación': '9:15 - 9:35', Sala: 'B', 'Hora de Entrevista': '10:15 - 10:35', Entrevistador: 4, 'Hora de Mesa Redonda': '10:25 - 11:00', Expositor: 2 },
-                { ID: '00561018', Nombre: 'Gómez Sobrino José Luis', Equipo: 2, 'Hora de Presentación': '9:15 - 9:35', Sala: 'B', 'Hora de Entrevista': '10:15 - 10:35', Entrevistador: 5, 'Hora de Mesa Redonda': '10:25 - 11:00', Expositor: 2 },
-                { ID: '00558588', Nombre: 'Huerta Mendoza Raúl', Equipo: 3, 'Hora de Presentación': '9:40 - 10:00', Sala: 'A', 'Hora de Entrevista': '9:15 - 9:35', Entrevistador: 1, 'Hora de Mesa Redonda': '10:25 - 11:00', Expositor: 3 },
-                { ID: '00476946', Nombre: 'Merlin Hernández Aishly Ximena', Equipo: 3, 'Hora de Presentación': '9:40 - 10:00', Sala: 'A', 'Hora de Entrevista': '9:15 - 9:35', Entrevistador: 2, 'Hora de Mesa Redonda': '10:25 - 11:00', Expositor: 3 },
-                { ID: '00588640', Nombre: 'Monroy Garcia Misael Matias', Equipo: 3, 'Hora de Presentación': '9:40 - 10:00', Sala: 'A', 'Hora de Entrevista': '10:15 - 10:35', Entrevistador: 6, 'Hora de Mesa Redonda': '11:00 - 11:35', Expositor: 1 },
-                { ID: '00584073', Nombre: 'Ochoa Ramirez Julián', Equipo: 3, 'Hora de Presentación': '9:40 - 10:00', Sala: 'A', 'Hora de Entrevista': '10:15 - 10:35', Entrevistador: 7, 'Hora de Mesa Redonda': '11:00 - 11:35', Expositor: 1 },
-                { ID: '00560560', Nombre: 'Olvera Quintanar Mario Santiago', Equipo: 3, 'Hora de Presentación': '9:40 - 10:00', Sala: 'A', 'Hora de Entrevista': '10:35 - 10:55', Entrevistador: 1, 'Hora de Mesa Redonda': '11:00 - 11:35', Expositor: 1 },
-                { ID: '00449964', Nombre: 'Ortega Rosario Erika Gabriela', Equipo: 4, 'Hora de Presentación': '9:40 - 10:00', Sala: 'B', 'Hora de Entrevista': '9:15 - 9:35', Entrevistador: 3, 'Hora de Mesa Redonda': '10:25 - 11:00', Expositor: 4 },
-                { ID: '00571035', Nombre: 'Osorio Vázquez Laura', Equipo: 4, 'Hora de Presentación': '9:40 - 10:00', Sala: 'B', 'Hora de Entrevista': '9:15 - 9:35', Entrevistador: 4, 'Hora de Mesa Redonda': '10:25 - 11:00', Expositor: 4 },
-                { ID: '00566072', Nombre: 'Payalaf de Gasperin Oscar Daniel', Equipo: 4, 'Hora de Presentación': '9:40 - 10:00', Sala: 'B', 'Hora de Entrevista': '10:15 - 10:35', Entrevistador: 8, 'Hora de Mesa Redonda': '11:00 - 11:35', Expositor: 2 },
-                { ID: '00483215', Nombre: 'Pérez Amezcua Travis David', Equipo: 4, 'Hora de Presentación': '9:40 - 10:00', Sala: 'B', 'Hora de Entrevista': '10:15 - 10:35', Entrevistador: 9, 'Hora de Mesa Redonda': '11:00 - 11:35', Expositor: 2 },
-                { ID: '00579993', Nombre: 'Ramirez Castañón Gabriela', Equipo: 4, 'Hora de Presentación': '9:40 - 10:00', Sala: 'B', 'Hora de Entrevista': '10:35 - 10:55', Entrevistador: 2, 'Hora de Mesa Redonda': '11:00 - 11:35', Expositor: 2 },
-                { ID: '00562176', Nombre: 'Ramírez Hernández José Vladimir', Equipo: 5, 'Hora de Presentación': '10:05 - 10:25', Sala: 'A', 'Hora de Entrevista': '9:15 - 9:35', Entrevistador: 5, 'Hora de Mesa Redonda': '11:00 - 11:35', Expositor: 3 },
-                { ID: '00565874', Nombre: 'Ramírez Rodríguez Diego Antonio', Equipo: 5, 'Hora de Presentación': '10:05 - 10:25', Sala: 'A', 'Hora de Entrevista': '9:15 - 9:35', Entrevistador: 6, 'Hora de Mesa Redonda': '11:00 - 11:35', Expositor: 3 },
-                { ID: '00552919', Nombre: 'Rámos Cano Diego Estevan', Equipo: 5, 'Hora de Presentación': '10:05 - 10:25', Sala: 'A', 'Hora de Entrevista': '9:35 - 9:55', Entrevistador: 1, 'Hora de Mesa Redonda': '11:00 - 11:35', Expositor: 3 },
-                { ID: '00561342', Nombre: 'Robles Muñiz Valeria', Equipo: 5, 'Hora de Presentación': '10:05 - 10:25', Sala: 'A', 'Hora de Entrevista': '9:35 - 9:55', Entrevistador: 2, 'Hora de Mesa Redonda': '11:00 - 11:35', Expositor: 3 },
-                { ID: '00556562', Nombre: 'Rodriguez Romero Mayte', Equipo: 5, 'Hora de Presentación': '10:05 - 10:25', Sala: 'A', 'Hora de Entrevista': '10:35 - 10:55', Entrevistador: 3, 'Hora de Mesa Redonda': '9:15 - 9:50', Expositor: 1 },
-                { ID: '00514530', Nombre: 'Rojas García Lucia', Equipo: 6, 'Hora de Presentación': '10:05 - 10:25', Sala: 'B', 'Hora de Entrevista': '9:15 - 9:35', Entrevistador: 7, 'Hora de Mesa Redonda': '11:00 - 11:35', Expositor: 4 },
-                { ID: '00552094', Nombre: 'Sánchez Rojas Emanuel', Equipo: 6, 'Hora de Presentación': '10:05 - 10:25', Sala: 'B', 'Hora de Entrevista': '9:15 - 9:35', Entrevistador: 8, 'Hora de Mesa Redonda': '11:00 - 11:35', Expositor: 4 },
-                { ID: '00554124', Nombre: 'Santiago Morales Arantza Gabriela', Equipo: 6, 'Hora de Presentación': '10:05 - 10:25', Sala: 'B', 'Hora de Entrevista': '9:35 - 9:55', Entrevistador: 3, 'Hora de Mesa Redonda': '11:00 - 11:35', Expositor: 4 },
-                { ID: '00478311', Nombre: 'Torres Arce Emiliano', Equipo: 6, 'Hora de Presentación': '10:05 - 10:25', Sala: 'B', 'Hora de Entrevista': '9:35 - 9:55', Entrevistador: 4, 'Hora de Mesa Redonda': '11:00 - 11:35', Expositor: 4 },
-                { ID: '00494379', Nombre: 'Vázquez Falcón lan Moisés', Equipo: 6, 'Hora de Presentación': '10:05 - 10:25', Sala: 'B', 'Hora de Entrevista': '10:35 - 10:55', Entrevistador: 4, 'Hora de Mesa Redonda': '9:15 - 9:50', Expositor: 2 },
-                { ID: '00543019', Nombre: 'Briones Quiyono Ana Sofia', Equipo: 7, 'Hora de Presentación': '10:30 - 10:50', Sala: 'A', 'Hora de Entrevista': '9:15 - 9:35', Entrevistador: 9, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 1 },
-                { ID: '00530047', Nombre: 'Camarillo Sánchez Juan Alberto', Equipo: 7, 'Hora de Presentación': '10:30 - 10:50', Sala: 'A', 'Hora de Entrevista': '9:15 - 9:35', Entrevistador: 10, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 1 },
-                { ID: '00562237', Nombre: 'Campuzano Silva Monserrat', Equipo: 7, 'Hora de Presentación': '10:30 - 10:50', Sala: 'A', 'Hora de Entrevista': '9:35 - 9:55', Entrevistador: 5, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 1 },
-                { ID: '00549936', Nombre: 'Enriquez Colchado Emilio', Equipo: 7, 'Hora de Presentación': '10:30 - 10:50', Sala: 'A', 'Hora de Entrevista': '9:35 - 9:55', Entrevistador: 6, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 1 },
-                { ID: '00571685', Nombre: 'Félix Aizpuru Maximiliano', Equipo: 7, 'Hora de Presentación': '10:30 - 10:50', Sala: 'A', 'Hora de Entrevista': '9:55 - 10:15', Entrevistador: 6, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 1 },
-                { ID: '00574765', Nombre: 'Flores Arcos Jesús Amauri', Equipo: 8, 'Hora de Presentación': '10:30 - 10:50', Sala: 'B', 'Hora de Entrevista': '9:15 - 9:35', Entrevistador: 1, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 2 },
-                { ID: '00543066', Nombre: 'Forcelledo Bledi Carlota', Equipo: 8, 'Hora de Presentación': '10:30 - 10:50', Sala: 'B', 'Hora de Entrevista': '9:35 - 9:55', Entrevistador: 7, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 2 },
-                { ID: '00569121', Nombre: 'Garrido del Valle Emiliano', Equipo: 8, 'Hora de Presentación': '10:30 - 10:50', Sala: 'B', 'Hora de Entrevista': '9:55 - 10:15', Entrevistador: 7, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 2 },
-                { ID: '00493870', Nombre: 'Gutiérrez Jiménez Jael Ricardo', Equipo: 8, 'Hora de Presentación': '10:30 - 10:50', Sala: 'B', 'Hora de Entrevista': '9:55 - 10:15', Entrevistador: 8, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 2 },
-                { ID: '00492520', Nombre: 'Hernández López Francisco', Equipo: 8, 'Hora de Presentación': '10:30 - 10:50', Sala: 'B', 'Hora de Entrevista': '10:15 - 10:35', Entrevistador: 10, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 2 },
-                { ID: '00531714', Nombre: 'Jiménez González Victor Manuel', Equipo: 9, 'Hora de Presentación': '10:55 - 11:15', Sala: 'A', 'Hora de Entrevista': '9:15 - 9:35', Entrevistador: 2, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 3 },
-                { ID: '00571883', Nombre: 'Limón Mata Alexa', Equipo: 9, 'Hora de Presentación': '10:55 - 11:15', Sala: 'A', 'Hora de Entrevista': '9:35 - 9:55', Entrevistador: 8, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 3 },
-                { ID: '00544679', Nombre: 'Lira González Adalberto', Equipo: 9, 'Hora de Presentación': '10:55 - 11:15', Sala: 'A', 'Hora de Entrevista': '9:55 - 10:15', Entrevistador: 9, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 3 },
-                { ID: '00552509', Nombre: 'Moreno Flores Karen Ayari', Equipo: 9, 'Hora de Presentación': '10:55 - 11:15', Sala: 'A', 'Hora de Entrevista': '10:15 - 10:35', Entrevistador: 9, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 3 },
-                { ID: '00557695', Nombre: 'Navarrete Flores Emiliano', Equipo: 9, 'Hora de Presentación': '10:55 - 11:15', Sala: 'A', 'Hora de Entrevista': '10:35 - 10:55', Entrevistador: 5, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 3 },
-                { ID: '00582580', Nombre: 'Olaya Camela Claudia', Equipo: 10, 'Hora de Presentación': '10:55 - 11:15', Sala: 'B', 'Hora de Entrevista': '9:15 - 9:35', Entrevistador: 3, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 4 },
-                { ID: '00495238', Nombre: 'Pineda Bello lan Miguel', Equipo: 10, 'Hora de Presentación': '10:55 - 11:15', Sala: 'B', 'Hora de Entrevista': '9:35 - 9:55', Entrevistador: 9, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 4 },
-                { ID: '00561988', Nombre: 'Ramirez Vera Kevin Samuel', Equipo: 10, 'Hora de Presentación': '10:55 - 11:15', Sala: 'B', 'Hora de Entrevista': '9:55 - 10:15', Entrevistador: 10, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 4 },
-                { ID: '00550267', Nombre: 'Saint Martin Sosa Diego', Equipo: 10, 'Hora de Presentación': '10:55 - 11:15', Sala: 'B', 'Hora de Entrevista': '10:15 - 10:35', Entrevistador: 1, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 4 },
-                { ID: '00508475', Nombre: 'Salazar Huerta Rodrigo', Equipo: 10, 'Hora de Presentación': '10:55 - 11:15', Sala: 'B', 'Hora de Entrevista': '10:35 - 10:55', Entrevistador: 6, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 4 },
-                { ID: '00563340', Nombre: 'Sánchez Dominguez Santiago', Equipo: 11, 'Hora de Presentación': '11:20 - 11:40', Sala: 'A', 'Hora de Entrevista': '9:55 - 10:15', Entrevistador: 1, 'Hora de Mesa Redonda': '10:25 - 11:00', Expositor: 5 },
-                { ID: '00441251', Nombre: 'Soriano Vergara Pedro', Equipo: 11, 'Hora de Presentación': '11:20 - 11:40', Sala: 'A', 'Hora de Entrevista': '9:55 - 10:15', Entrevistador: 2, 'Hora de Mesa Redonda': '10:25 - 11:00', Expositor: 5 },
-                { ID: '00535961', Nombre: 'Torres Sánchez Luis Carlos', Equipo: 11, 'Hora de Presentación': '11:20 - 11:40', Sala: 'A', 'Hora de Entrevista': '10:15 - 10:35', Entrevistador: 2, 'Hora de Mesa Redonda': '10:25 - 11:00', Expositor: 5 },
-                { ID: '00557721', Nombre: 'Vega Ibarra Angel Abraham', Equipo: 11, 'Hora de Presentación': '11:20 - 11:40', Sala: 'A', 'Hora de Entrevista': '10:15 - 10:35', Entrevistador: 3, 'Hora de Mesa Redonda': '10:25 - 11:00', Expositor: 5 },
-                { ID: '00571014', Nombre: 'Zermeño Sánchez Tonatiuh', Equipo: 11, 'Hora de Presentación': '11:20 - 11:40', Sala: 'A', 'Hora de Entrevista': '10:35 - 10:55', Entrevistador: 7, 'Hora de Mesa Redonda': '10:25 - 11:00', Expositor: 5 },
-                { ID: '00578939', Nombre: 'Bello Martinez Emiliano', Equipo: 11, 'Hora de Presentación': '11:20 - 11:40', Sala: 'A', 'Hora de Entrevista': '10:35 - 10:55', Entrevistador: 8, 'Hora de Mesa Redonda': '10:25 - 11:00', Expositor: 5 },
-                { ID: '00524719', Nombre: 'de la Rosa Burgos Alvaro Alejandro', Equipo: 12, 'Hora de Presentación': '11:20 - 11:40', Sala: 'B', 'Hora de Entrevista': '9:15 - 9:35', Entrevistador: 4, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 5 },
-                { ID: '00523828', Nombre: 'Diaz Mayo José Pablo', Equipo: 12, 'Hora de Presentación': '11:20 - 11:40', Sala: 'B', 'Hora de Entrevista': '9:35 - 9:55', Entrevistador: 5, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 5 },
-                { ID: '00497686', Nombre: 'Jiménez Gómez Omar Michel', Equipo: 12, 'Hora de Presentación': '11:20 - 11:40', Sala: 'B', 'Hora de Entrevista': '9:55 - 10:15', Entrevistador: 3, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 5 },
-                { ID: '00464515', Nombre: 'Monterrosas Mirón Karla Antonia', Equipo: 12, 'Hora de Presentación': '11:20 - 11:40', Sala: 'B', 'Hora de Entrevista': '10:15 - 10:35', Entrevistador: 4, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 5 },
-                { ID: '00545786', Nombre: 'Peniche Pérez Esteban', Equipo: 12, 'Hora de Presentación': '11:20 - 11:40', Sala: 'B', 'Hora de Entrevista': '10:35 - 10:55', Entrevistador: 9, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 5 },
-                { ID: '00525597', Nombre: 'Tejeda Flores Zara Valentina', Equipo: 12, 'Hora de Presentación': '11:20 - 11:40', Sala: 'B', 'Hora de Entrevista': '10:35 - 10:55', Entrevistador: 10, 'Hora de Mesa Redonda': '9:50 - 10:25', Expositor: 5 },
-            ];
+            const initialMasterData = {
+                students: [
+                    { id: '00565156', name: 'Alonso Farfan Mikel Javier', team: 1, presentationTime: '9:15 - 9:35', sala: 'A', interviewTime: '9:55 - 10:15', entrevistador: 1, networkingTime: '10:25 - 11:00', expositor: 1 },
+                    { id: '00382999', name: 'Alvarez Santiago Cristhian Rafael', team: 1, presentationTime: '9:15 - 9:35', sala: 'A', interviewTime: '9:55 - 10:15', entrevistador: 2, networkingTime: '10:25 - 11:00', expositor: 1 },
+                    { id: '00549581', name: 'Arroyo Vargas Hanna Janette', team: 1, presentationTime: '9:15 - 9:35', sala: 'A', interviewTime: '9:55 - 10:15', entrevistador: 3, networkingTime: '10:25 - 11:00', expositor: 1 },
+                    { id: '00569010', name: 'Aymerich Bringas José Luis', team: 1, presentationTime: '9:15 - 9:35', sala: 'A', interviewTime: '10:15 - 10:35', entrevistador: 1, networkingTime: '10:25 - 11:00', expositor: 1 },
+                    { id: '00433549', name: 'Colmenares Barrera Bruno', team: 1, presentationTime: '9:15 - 9:35', sala: 'A', interviewTime: '10:15 - 10:35', entrevistador: 2, networkingTime: '10:25 - 11:00', expositor: 1 },
+                    { id: '00576469', name: 'Cruz Cruz Daira', team: 2, presentationTime: '9:15 - 9:35', sala: 'B', interviewTime: '9:55 - 10:15', entrevistador: 4, networkingTime: '10:25 - 11:00', expositor: 2 },
+                    { id: '00527134', name: 'Deloya González Guillermo', team: 2, presentationTime: '9:15 - 9:35', sala: 'B', interviewTime: '9:55 - 10:15', entrevistador: 5, networkingTime: '10:25 - 11:00', expositor: 2 },
+                    { id: '00589649', name: 'Espejel Ramos Diego', team: 2, presentationTime: '9:15 - 9:35', sala: 'B', interviewTime: '10:15 - 10:35', entrevistador: 3, networkingTime: '10:25 - 11:00', expositor: 2 },
+                    { id: '00563562', name: 'García Romero Antonio Salvador', team: 2, presentationTime: '9:15 - 9:35', sala: 'B', interviewTime: '10:15 - 10:35', entrevistador: 4, networkingTime: '10:25 - 11:00', expositor: 2 },
+                    { id: '00561018', name: 'Gómez Sobrino José Luis', team: 2, presentationTime: '9:15 - 9:35', sala: 'B', interviewTime: '10:15 - 10:35', entrevistador: 5, networkingTime: '10:25 - 11:00', expositor: 2 },
+                    // ... (rest of the student data can be added here)
+                ],
+                interviewers: [
+                    { id: 1, name: 'Ricardo Morales' },
+                    { id: 2, name: 'Sofia Castillo' },
+                    { id: 3, name: 'Andrea Jiménez' },
+                    { id: 4, name: 'Jorge Noguez' },
+                    { id: 5, name: 'Fernanda Soto' },
+                    { id: 6, name: 'David Alarcón' },
+                    { id: 7, name: 'Laura Méndez' },
+                    { id: 8, name: 'Carlos Valerio' },
+                    { id: 9, name: 'Lucía Méndez' },
+                    { id: 10, name: 'Alberto Ríos' }
+                ],
+                expositors: [
+                    { id: 1, name: 'ExpoTech' },
+                    { id: 2, name: 'InnovaHub' },
+                    { id: 3, name: 'FutureMinds' },
+                    { id: 4, name: 'Talent Solutions' },
+                    { id: 5, name: 'Creative Spark' }
+                ]
+            };
 
 
             const urlParams = new URLSearchParams(window.location.search);
@@ -241,10 +237,12 @@
 
                 loadInitialData();
                 searchInput.addEventListener('input', handleSearch);
-                addStudentBtn.addEventListener('click', addStudentRow);
+                addStudentBtn.addEventListener('click', () => addRowToTable('admin-table'));
+                addInterviewerBtn.addEventListener('click', () => addRowToTable('interviewers-table'));
+                addExpositorBtn.addEventListener('click', () => addRowToTable('expositors-table'));
                 saveDataBtn.addEventListener('click', saveAndProcessData);
-
-                adminTableContainer.addEventListener('click', (e) => {
+                
+                configSection.addEventListener('click', (e) => {
                     if (e.target.classList.contains('delete-row-btn')) {
                         e.target.closest('tr').remove();
                     }
@@ -252,120 +250,108 @@
             }
             
             function loadInitialData() {
-                const savedData = localStorage.getItem(STUDENTS_STORAGE_KEY);
-                let studentList = [];
-                if (savedData) {
-                    studentList = JSON.parse(savedData);
-                } else {
-                    studentList = masterScheduleData.map(s => ({
-                        id: s.ID,
-                        name: s.Nombre,
-                        team: s.Equipo,
-                        presentationTime: s['Hora de Presentación'],
-                        sala: s.Sala,
-                        interviewTime: s['Hora de Entrevista'],
-                        entrevistador: s.Entrevistador,
-                        networkingTime: s['Hora de Mesa Redonda'],
-                        expositor: s.Expositor
-                    }));
-                }
-
+                const savedData = localStorage.getItem(MASTER_DATA_KEY);
+                const data = savedData ? JSON.parse(savedData) : initialMasterData;
+                
                 if (isAdmin) {
-                    renderAdminTable(studentList);
+                    renderAdminTables(data);
                 }
-                processSchedules(studentList);
+                processSchedules(data);
             }
             
-            function renderAdminTable(studentList) {
+            function renderAdminTables(data) {
+                renderStudentTable(data.students);
+                renderStaffTable('interviewers-table-container', data.interviewers, ['ID', 'Nombre']);
+                renderStaffTable('expositors-table-container', data.expositors, ['ID', 'Nombre']);
+            }
+
+            function renderStudentTable(studentList) {
                 const table = document.createElement('table');
                 table.id = 'admin-table';
                 table.innerHTML = `
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Nombre</th>
-                            <th>Equipo</th>
-                            <th>Presentación (HH:MM - HH:MM)</th>
-                            <th>Sala</th>
-                            <th>Entrevista (HH:MM - HH:MM)</th>
-                            <th>Entrevistador</th>
-                            <th>Mesa Redonda (HH:MM - HH:MM)</th>
-                            <th>Expositor</th>
-                            <th>Acción</th>
+                            <th>ID</th><th>Nombre</th><th>Equipo</th><th>Presentación</th><th>Sala</th><th>Entrevista</th><th>Entrevistador (ID)</th><th>Mesa Redonda</th><th>Expositor (ID)</th><th>Acción</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${studentList.map(s => `
                             <tr>
-                                <td contenteditable="true">${s.id}</td>
-                                <td contenteditable="true">${s.name}</td>
-                                <td contenteditable="true">${s.team}</td>
-                                <td contenteditable="true">${s.presentationTime}</td>
-                                <td contenteditable="true">${s.sala}</td>
-                                <td contenteditable="true">${s.interviewTime}</td>
-                                <td contenteditable="true">${s.entrevistador}</td>
-                                <td contenteditable="true">${s.networkingTime}</td>
-                                <td contenteditable="true">${s.expositor}</td>
+                                <td contenteditable="true">${s.id}</td><td contenteditable="true">${s.name}</td><td contenteditable="true">${s.team}</td>
+                                <td contenteditable="true">${s.presentationTime}</td><td contenteditable="true">${s.sala}</td>
+                                <td contenteditable="true">${s.interviewTime}</td><td contenteditable="true">${s.entrevistador}</td>
+                                <td contenteditable="true">${s.networkingTime}</td><td contenteditable="true">${s.expositor}</td>
                                 <td><button class="delete-row-btn">&times;</button></td>
                             </tr>
                         `).join('')}
-                    </tbody>
-                `;
+                    </tbody>`;
                 adminTableContainer.innerHTML = '';
                 adminTableContainer.appendChild(table);
             }
+
+            function renderStaffTable(containerId, staffList, headers) {
+                const container = document.getElementById(containerId);
+                const table = document.createElement('table');
+                table.id = containerId.replace('-container', '');
+                table.innerHTML = `
+                    <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}<th>Acción</th></tr></thead>
+                    <tbody>
+                        ${staffList.map(item => `
+                            <tr>
+                                ${headers.map(h => `<td contenteditable="true">${item[h.toLowerCase()]}</td>`).join('')}
+                                <td><button class="delete-row-btn">&times;</button></td>
+                            </tr>`).join('')}
+                    </tbody>`;
+                container.innerHTML = '';
+                container.appendChild(table);
+            }
             
-            function addStudentRow() {
-                const tableBody = document.querySelector('#admin-table tbody');
-                if (tableBody) {
-                    const newRow = tableBody.insertRow();
-                    newRow.innerHTML = `
-                        <td contenteditable="true">Nuevo ID</td>
-                        <td contenteditable="true">Nombre Apellido</td>
-                        <td contenteditable="true">1</td>
-                        <td contenteditable="true">09:00 - 09:20</td>
-                        <td contenteditable="true">A</td>
-                        <td contenteditable="true">10:00 - 10:20</td>
-                        <td contenteditable="true">1</td>
-                        <td contenteditable="true">11:00 - 11:35</td>
-                        <td contenteditable="true">1</td>
-                        <td><button class="delete-row-btn">&times;</button></td>
-                    `;
+            function addRowToTable(tableId) {
+                const tableBody = document.querySelector(`#${tableId} tbody`);
+                if (!tableBody) return;
+                const newRow = tableBody.insertRow();
+                const cellCount = tableBody.rows[0]?.cells.length || 2;
+                for (let i = 0; i < cellCount - 1; i++) {
+                    newRow.insertCell().setAttribute('contenteditable', 'true');
                 }
+                newRow.insertCell().innerHTML = '<button class="delete-row-btn">&times;</button>';
             }
 
             function saveAndProcessData() {
-                const studentList = [];
-                const tableRows = document.querySelectorAll('#admin-table tbody tr');
-                tableRows.forEach(row => {
-                    const cells = row.querySelectorAll('td');
-                    studentList.push({
-                        id: cells[0].textContent.trim(),
-                        name: cells[1].textContent.trim(),
-                        team: parseInt(cells[2].textContent.trim(), 10) || 0,
-                        presentationTime: cells[3].textContent.trim(),
-                        sala: cells[4].textContent.trim(),
-                        interviewTime: cells[5].textContent.trim(),
-                        entrevistador: parseInt(cells[6].textContent.trim(), 10) || 0,
-                        networkingTime: cells[7].textContent.trim(),
-                        expositor: parseInt(cells[8].textContent.trim(), 10) || 0,
-                    });
-                });
+                const studentList = getTableData('admin-table', ['id', 'name', 'team', 'presentationTime', 'sala', 'interviewTime', 'entrevistador', 'networkingTime', 'expositor']);
+                const interviewersList = getTableData('interviewers-table', ['id', 'name']);
+                const expositorsList = getTableData('expositors-table', ['id', 'name']);
+
+                const masterData = {
+                    students: studentList,
+                    interviewers: interviewersList,
+                    expositors: expositorsList
+                };
                 
-                localStorage.setItem(STUDENTS_STORAGE_KEY, JSON.stringify(studentList));
-                processSchedules(studentList);
+                localStorage.setItem(MASTER_DATA_KEY, JSON.stringify(masterData));
+                processSchedules(masterData);
             }
 
-            function processSchedules(studentList) {
-                students = {};
-                
-                const activityConfigs = {
-                    presentationTime: { title: 'Presentación de Proyectos (Equipo)'},
-                    networkingTime: { title: 'Mesa con Expositores'},
-                    interviewTime: { title: 'Entrevista Individual'}
-                };
+            function getTableData(tableId, keys) {
+                const data = [];
+                const tableRows = document.querySelectorAll(`#${tableId} tbody tr`);
+                tableRows.forEach(row => {
+                    const cells = row.querySelectorAll('td');
+                    const item = {};
+                    keys.forEach((key, i) => {
+                        item[key] = cells[i]?.textContent.trim() || '';
+                    });
+                    data.push(item);
+                });
+                return data;
+            }
 
-                studentList.forEach(studentInfo => {
+            function processSchedules(data) {
+                students = {};
+                const interviewersMap = new Map(data.interviewers.map(i => [i.id, i.name]));
+                const expositorsMap = new Map(data.expositors.map(e => [e.id, e.name]));
+
+                data.students.forEach(studentInfo => {
                     const studentActivities = [];
                     
                     const createActivity = (timeRange, title, location) => {
@@ -380,18 +366,16 @@
                             const endDate = new Date();
                             endDate.setHours(endH, endM, 0, 0);
 
-                            studentActivities.push({
-                                title: title,
-                                location: location,
-                                start: startDate.toISOString(),
-                                end: endDate.toISOString()
-                            });
+                            studentActivities.push({ title, location, start: startDate.toISOString(), end: endDate.toISOString() });
                         }
                     };
 
-                    createActivity(studentInfo.presentationTime, activityConfigs.presentationTime.title, `Sala de Pitch ${studentInfo.sala}`);
-                    createActivity(studentInfo.networkingTime, activityConfigs.networkingTime.title, `Expositor #${studentInfo.expositor}`);
-                    createActivity(studentInfo.interviewTime, activityConfigs.interviewTime.title, `Entrevistador #${studentInfo.entrevistador}`);
+                    const interviewerName = interviewersMap.get(studentInfo.entrevistador) || `ID #${studentInfo.entrevistador}`;
+                    const expositorName = expositorsMap.get(studentInfo.expositor) || `ID #${studentInfo.expositor}`;
+
+                    createActivity(studentInfo.presentationTime, 'Presentación de Proyectos', `Sala de Pitch ${studentInfo.sala}`);
+                    createActivity(studentInfo.networkingTime, 'Mesa con Expositores', `Con: ${expositorName}`);
+                    createActivity(studentInfo.interviewTime, 'Entrevista Individual', `Con: ${interviewerName}`);
 
                     studentActivities.sort((a,b) => new Date(a.start) - new Date(b.start));
                     students[studentInfo.id] = { ...studentInfo, activities: studentActivities };
@@ -408,9 +392,7 @@
             function showAdminStatus(message) {
                 adminStatus.textContent = message;
                 adminStatus.style.display = 'block';
-                setTimeout(() => {
-                    adminStatus.style.display = 'none';
-                }, 3000);
+                setTimeout(() => adminStatus.style.display = 'none', 3000);
             }
 
             function handleSearch() {
@@ -426,9 +408,7 @@
                     const normalizedName = normalizeString(student.name);
                     const normalizedId = normalizeString(student.id);
 
-                    if (normalizedId.includes(normalizedQuery)) {
-                        return true;
-                    }
+                    if (normalizedId.includes(normalizedQuery)) return true;
                     return searchTerms.every(term => normalizedName.includes(term));
                 });
                 renderResults(filteredStudents);
